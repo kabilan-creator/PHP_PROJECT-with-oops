@@ -172,7 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card">
               <div class="card-header p-2">
                 <ul class="nav nav-pills">
-                  <li class="nav-item"><a class="nav-link active" >EDIT PAGE</a></li>
+                  <li class="nav-item"><a class="float-end d-none d-sm-inline" >EDIT PAGE</a></li>
                 </ul>
               </div><!-- /.card-header -->
               <div class="card-body">
