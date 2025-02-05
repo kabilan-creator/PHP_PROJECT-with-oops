@@ -11,18 +11,29 @@ if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === false) {
     exit();
 }
 
-if (isset($_SESSION['AMAIL'])) {
-    $user_email = $_SESSION['AMAIL'];
-
-    $sql = "SELECT * FROM admin WHERE AMAIL = ?";
-    $stmt = $db->prepare($sql);
-    $stmt->bind_param('s', $user_email);
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $user = $result->fetch_assoc();
-} else {
-    die("Unauthorized access. Please log in.");
+if (!isset($_SESSION['AMAIL'])) {
+  die("Unauthorized access. Please log in.");
 }
+
+$user_email = $_SESSION['AMAIL'];
+
+// Prepare and execute the query to fetch admin details
+$sql = "SELECT * FROM admin WHERE AMAIL = ?";
+$stmt = $db->prepare($sql);
+$stmt->bind_param('s', $user_email);
+$stmt->execute();
+$result = $stmt->get_result();
+$user = $result->fetch_assoc();
+
+// Check if user data is retrieved
+if (!$user) {
+  die("User not found.");
+}
+
+// Fetch gender from the separate `gender` table
+$gender_display = 'N/A'; // Default value
+
+
 
 // Handle the update form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -30,18 +41,32 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $dob = $_POST['dob'];
     $address = $_POST['address'];
     $phone = $_POST['phone'];
+    $gender_id = $_POST['gender']; 
 
-    $update_sql = "UPDATE admin SET NAME = ?, dob = ?, address = ?, pnumber = ? WHERE AMAIL = ?";
+    $update_sql = "UPDATE admin SET NAME = ?, dob = ?, address = ?, pnumber = ?,gender_id = ? WHERE AMAIL = ?";
     $update_stmt = $db->prepare($update_sql);
 
     if ($update_stmt) {
-        $update_stmt->bind_param('sssss', $name, $dob, $address, $phone, $user_email);
+        $update_stmt->bind_param('ssssss', $name, $dob, $address, $phone,$gender_id, $user_email);
 
         if ($update_stmt->execute()) {
             $success = "Profile updated successfully.";
             // Fetch updated data
             $result = $stmt->execute();
             $user = $stmt->get_result()->fetch_assoc();
+            if (!empty($user['gender_id'])) {
+              $gender_query = "SELECT gender_name FROM gender WHERE id = ?";
+              $gender_stmt = $db->prepare($gender_query);
+              $gender_stmt->bind_param("i", $user['gender_id']);
+              $gender_stmt->execute();
+              $gender_result = $gender_stmt->get_result();
+              $gender_data = $gender_result->fetch_assoc();
+              
+              // Assign gender name if found
+              if ($gender_data) {
+                  $gender_display = $gender_data['gender_name'];
+              }
+            } 
         } else {
             $error = "Error updating profile: " . $db->error;
         }
@@ -162,6 +187,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <p class="text-muted">
                 <?php echo htmlspecialchars($user['address'] ?? 'N/A'); ?>
                 </p>
+                <hr>
+                <strong><i class="fas fa-user mr-1"></i> GENDER</strong>
+                <p class="text-muted"><?php echo htmlspecialchars($gender_display); ?></p>
               </div>
               <!-- /.card-body -->
             </div>
@@ -172,7 +200,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="card">
               <div class="card-header p-2">
                 <ul class="nav nav-pills">
-                  <li class="nav-item"><a class="float-end d-none d-sm-inline" >EDIT PAGE</a></li>
+                  <li class="col-sm-2 col-form-label"><strong>EDIT PAGE</strong></li>
                 </ul>
               </div><!-- /.card-header -->
               <div class="card-body">
@@ -211,6 +239,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         </div>
                       </div>
                       <br>
+                      
+                      <?php
+                       $gender_query = "SELECT * FROM gender";
+                       $gender_result = $db->query($gender_query);
+                       ?>
+                          <div class="form-group row">
+                              <label for="gender" class="col-sm-2 col-form-label">Gender</label>
+                              <div class="col-sm-10">
+                                  <select class="form-control" id="gender" name="gender">
+                                      <?php while ($gender = $gender_result->fetch_assoc()): ?>
+                                          <option value="<?php echo $gender['id']; ?>" 
+                                              <?php echo ($user['gender_id'] == $gender['id']) ? 'selected' : ''; ?>>
+                                              <?php echo $gender['gender_name']; ?>
+                                          </option>
+                                      <?php endwhile; ?>
+                                  </select>
+                              </div>
+                          </div>
+                          <br>
                       <div class="form-group row">
                         <div class="offset-sm-2 col-sm-10">
                           <button type="submit" class="btn btn-danger">Submit</button>
