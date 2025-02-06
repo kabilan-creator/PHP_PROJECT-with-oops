@@ -17,63 +17,69 @@ if (!isset($_SESSION['AMAIL'])) {
 
 $user_email = $_SESSION['AMAIL'];
 
-// Prepare and execute the query to fetch admin details
-$sql = "SELECT * FROM admin WHERE AMAIL = ?";
-$stmt = $db->prepare($sql);
-$stmt->bind_param('s', $user_email);
-$stmt->execute();
-$result = $stmt->get_result();
-$user = $result->fetch_assoc();
+// Fetch admin and user details in a single query
+$sql = "SELECT a.*, u.phone, u.address, u.dob, u.gender_id, g.gender_name 
+        FROM admin a
+        LEFT JOIN user_details u ON a.AMAIL = u.user_email
+        LEFT JOIN gender g ON u.gender_id = g.id
+        WHERE a.AMAIL = ? LIMIT 1";
+if ($stmt = $db->prepare($sql)) {
+  $stmt->bind_param('s', $user_email);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $user = $result->fetch_assoc();
+  $stmt->close();
+} else {
+  die("Database error: " . $db->error);
+}
 
-// Check if user data is retrieved
 if (!$user) {
-  die("User not found.");
+    die("User not found.");
 }
 
-// Fetch gender from the separate `gender` table
-$gender_display = 'N/A'; // Default value
+$gender_display = $user['gender_name'] ?? 'N/A';
 
-
-
-// Handle the update form submission
+// Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $name = $_POST['name'];
-  $dob = $_POST['dob'];
-  $address = $_POST['address'];
-  $phone = $_POST['phone'];
-  $gender_id = $_POST['gender'];
+    $name = $_POST['name'] ?? "Unknown";
+    $phone = $_POST['phone'] ?? "N/A";
+    $address = $_POST['address'] ?? "N/A";
+    $dob = $_POST['dob'] ?? "N/A";
+    $gender = $_POST['gender'] ?? null;
+// Update admin and user_details using a single transaction
+$db->begin_transaction();
+try {
+    $update_sql = "UPDATE admin SET NAME = ?, gender_id = ? WHERE AMAIL = ?";
+    $update_stmt = $db->prepare($update_sql);
+    $update_stmt->bind_param('sis', $name, $gender, $user_email);
+    $update_stmt->execute();
+    $update_stmt->close();
 
-  $update_sql = "UPDATE admin SET NAME = ?, dob = ?, address = ?, pnumber = ?,gender_id = ? WHERE AMAIL = ?";
-  $update_stmt = $db->prepare($update_sql);
+    $details_update_sql = "INSERT INTO user_details (user_email, phone, address, dob, gender_id)
+        VALUES (?, ?, ?, ?, ?)
+        ON DUPLICATE KEY UPDATE phone = VALUES(phone), address = VALUES(address), dob = VALUES(dob), gender_id = VALUES(gender_id)";
+    $details_update_stmt = $db->prepare($details_update_sql);
+    $details_update_stmt->bind_param('sssss', $user_email, $phone, $address, $dob, $gender);
+    $details_update_stmt->execute();
+    $details_update_stmt->close();
 
-  if ($update_stmt) {
-    $update_stmt->bind_param('ssssss', $name, $dob, $address, $phone, $gender_id, $user_email);
+    $db->commit();
+    $success = "Profile updated successfully.";
 
-    if ($update_stmt->execute()) {
-      $success = "Profile updated successfully.";
-      // Fetch updated data
-      $result = $stmt->execute();
-      $user = $stmt->get_result()->fetch_assoc();
-      if (!empty($user['gender_id'])) {
-        $gender_query = "SELECT gender_name FROM gender WHERE id = ?";
-        $gender_stmt = $db->prepare($gender_query);
-        $gender_stmt->bind_param("i", $user['gender_id']);
-        $gender_stmt->execute();
-        $gender_result = $gender_stmt->get_result();
-        $gender_data = $gender_result->fetch_assoc();
-
-        // Assign gender name if found
-        if ($gender_data) {
-          $gender_display = $gender_data['gender_name'];
-        }
-      }
-    } else {
-      $error = "Error updating profile: " . $db->error;
+    // Re-fetch updated data
+    if ($stmt = $db->prepare($sql)) {
+        $stmt->bind_param('s', $user_email);
+        $stmt->execute();
+        $user = $stmt->get_result()->fetch_assoc();
+        $stmt->close();
+        $gender_display = $user['gender_name'] ?? 'N/A';
     }
-  } else {
-    $error = "Error preparing update statement: " . $db->error;
-  }
+} catch (Exception $e) {
+    $db->rollback();
+    $error = "Error updating profile: " . $e->getMessage();
 }
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en"> <!--begin::Head-->
@@ -170,7 +176,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                   <strong><i class="fas fa-map-marker-alt mr-1"></i>PHONE NUMBER</strong>
 
-                  <p class="text-muted"><?php echo htmlspecialchars($user['pnumber'] ?? 'N/A'); ?></p>
+                  <p class="text-muted"><?php echo htmlspecialchars($user['phone'] ?? 'N/A'); ?></p>
 
                   <hr>
 
@@ -214,28 +220,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         <div class="form-group row">
                           <label for="inputName" class="col-sm-2 col-form-label">Name</label>
                           <div class="col-sm-10">
-                            <input type="text" class="form-control" id="name" name="name" value="<?php echo htmlspecialchars($user['NAME']); ?>" required>
+                          <input type="text" class="form-control" id="name" name="name" 
+                          value="<?php echo htmlspecialchars($user['NAME'] ?? '', ENT_QUOTES); ?>">
                           </div>
                         </div>
-                        <br>
-                        <div class="form-group row">
-                          <label for="inputEmail" class="col-sm-2 col-form-label">Date of Birth</label>
+                         <br>
+                          <div class="form-group row">
+                          <label for="inputExperience" class="col-sm-2 col-form-label">Phone Number</label>
                           <div class="col-sm-10">
-                            <input type="date" class="form-control" id="dob" name="dob" value="<?php echo htmlspecialchars($user['dob']); ?>">
+                            <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo htmlspecialchars($user['phone']); ?>">
                           </div>
-                        </div>
-                        <br>
+                          </div>
+                          <br>
+
+                      <!-- Address -->
                         <div class="form-group row">
-                          <label for="inputName2" class="col-sm-2 col-form-label">ADDRESS</label>
+                          <label for="inputName2" class="col-sm-2 col-form-label">Address</label>
                           <div class="col-sm-10">
                             <input type="text" class="form-control" id="address" name="address" value="<?php echo htmlspecialchars($user['address']); ?>">
                           </div>
                         </div>
                         <br>
+
+                      <!-- Date of Birth -->
                         <div class="form-group row">
-                          <label for="inputExperience" class="col-sm-2 col-form-label">PHONE NUMBER</label>
+                          <label for="inputEmail" class="col-sm-2 col-form-label">Date of Birth</label>
                           <div class="col-sm-10">
-                            <input type="tel" class="form-control" id="phone" name="phone" value="<?php echo htmlspecialchars($user['pnumber']); ?>">
+                            <input type="date" class="form-control" id="dob" name="dob" value="<?php echo htmlspecialchars($user['dob']); ?>">
                           </div>
                         </div>
                         <br>
@@ -250,8 +261,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             <select class="form-control" id="gender" name="gender">
                               <?php while ($gender = $gender_result->fetch_assoc()): ?>
                                 <option value="<?php echo $gender['id']; ?>"
-                                  <?php echo ($user['gender_id'] == $gender['id']) ? 'selected' : ''; ?>>
-                                  <?php echo $gender['gender_name']; ?>
+                                <?php echo (!empty($user['gender_id']) && $user['gender_id'] == $gender['id']) ? 'selected' : ''; ?>>
+                                <?php echo $gender['gender_name']; ?>
                                 </option>
                               <?php endwhile; ?>
                             </select>
