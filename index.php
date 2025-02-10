@@ -9,6 +9,10 @@ if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === false) {
 
     exit();
 }
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
+    header("Location: admin_dashboard.php");
+    exit();
+}
 require './views/partials/header.php';  
 ?>
 

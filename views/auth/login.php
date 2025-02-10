@@ -72,7 +72,14 @@ if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true) {
                     if (password_verify($password, $user['APASS'])) {
                         $_SESSION['AMAIL'] = $username;
                         $_SESSION['is_logged_in'] = true;
-                        header('Location:'.url('/index.php')); // Redirect to dashboard
+                        $_SESSION['role'] = $user['role']; // Assuming role is stored as 'admin' or 'user'
+
+                        if ($user['role'] === 'admin') {
+                            header("Location: ../../admin_dashboard.php"); // Redirect to Admin Panel
+                        } else {
+                          header('Location:'.url('/index.php')); // Redirect to dashboard
+                        }
+                        
                         exit();
                     } else {
                         $error = "Invalid username or password.";
@@ -88,6 +95,7 @@ if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === true) {
                   echo "<div class='alert alert-danger'>$error</div>";
               }
           }
+
               ?>
 
         
