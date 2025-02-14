@@ -28,8 +28,9 @@ if (isset($_POST['add_user'])) {
      $check_stmt->execute();
      $check_stmt->store_result();
  
-     if ($check_stmt->num_rows > 0) {
-         echo "<script>alert('User already exists!');</script>";
+     if ($check_stmt->num_rows > 0) {      
+        $_SESSION['message'] = "User already exists!";
+        $_SESSION['msg_type'] = "warning";
      } else {
          //  Insert into admin table
          $sql = "INSERT INTO admin (NAME, AMAIL, APASS, role, gender_id) VALUES (?, ?, ?, ?, ?)";
@@ -43,10 +44,14 @@ if (isset($_POST['add_user'])) {
              $stmt2->bind_param('ssssi', $email, $phone, $address, $dob, $gender_id);
              $stmt2->execute();
              
-             echo "<script>alert('User added successfully!');</script>";
+             $_SESSION['message'] = "User added successfully!";
+             $_SESSION['msg_type'] = "success";
          } else {
-             echo "<script>alert('Error adding user. Try again!');</script>";
+             $_SESSION['message'] = "Error adding user. Try again!";
+             $_SESSION['msg_type'] = "danger";
          }
+         header("Location: admin_dashboard.php");
+         exit();
      }
  }
 
@@ -73,6 +78,10 @@ if (isset($_POST['update_user'])) {
     $stmt2 = $db->prepare($sql2);
     $stmt2->bind_param('ssssis', $email, $phone, $address, $dob, $gender_id, $email);
     $stmt2->execute();
+    $_SESSION['message'] = "User updated successfully!";
+    $_SESSION['msg_type'] = "success";
+    header("Location: admin_dashboard.php");
+    exit();
 }
 
 // Handle Delete User/Admin
@@ -90,6 +99,11 @@ if (isset($_GET['delete'])) {
     $stmt2 = $db->prepare($sql2);
     $stmt2->bind_param('i', $id);
     $stmt2->execute();
+
+    $_SESSION['message'] = "User deleted successfully!";
+    $_SESSION['msg_type'] = "danger";
+    header("Location: admin_dashboard.php");
+    exit();
 }
 
 // Fetch all users and admins
@@ -119,6 +133,14 @@ if (!file_exists('./views/partials/sidebar.php')) {
 ?> 
    <div class="container mt-5">
         <h2>Manage Users & Admins</h2>
+        <!-- Bootstrap Alert Messages -->
+        <?php if (isset($_SESSION['message'])): ?>
+        <div class="alert alert-<?php echo $_SESSION['msg_type']; ?> alert-dismissible fade show" role="alert">
+            <?php echo $_SESSION['message']; ?>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <?php unset($_SESSION['message']); unset($_SESSION['msg_type']); ?>
+        <?php endif; ?>
 
         <!-- Add User Form -->
         <form method="POST">
@@ -253,6 +275,17 @@ if (!file_exists('./views/partials/sidebar.php')) {
             window.location.href = "?delete=" + id;
         }
     }
+    </script>
+    <script>
+    // Auto-hide alerts after 5 seconds
+    setTimeout(function() {
+        let alerts = document.querySelectorAll('.alert');
+        alerts.forEach(function(alert) {
+            alert.style.transition = "opacity 0.5s ease-out";
+            alert.style.opacity = "0";
+            setTimeout(() => alert.remove(), 500);
+        });
+    }, 5000);
     </script>
     <script src="https://cdn.jsdelivr.net/npm/apexcharts@3.37.1/dist/apexcharts.min.js" integrity="sha256-+vh8GkaU7C9/wbSLIcwq82tQ2wTf44aOHA8HlBMwRI8=" crossorigin="anonymous"></script> <!-- ChartJS -->
     <script src="https://cdn.jsdelivr.net/npm/jsvectormap@1.5.3/dist/js/jsvectormap.min.js" integrity="sha256-/t1nN2956BT869E6H4V1dnt0X5pAQHPytli+1nTZm2Y=" crossorigin="anonymous"></script>
