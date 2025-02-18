@@ -1,66 +1,81 @@
 <?php
+require './config/database.php'; 
 require './config/helper.php';
-require  './config/database.php';
 session_start();
 
+// Ensure user is logged in as an employee
+if (!isset($_SESSION['AMAIL']) || $_SESSION['role'] != 'employee') {
+    die("Access Denied. Please login as an employee.");
+}
 
-if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === false) {
-    header("Location:" .url('/views/auth/login.php'));
+$email = $_SESSION['AMAIL'];
 
-    exit();
+if (!$db) {
+    die("Database connection error: " . mysqli_connect_error());
 }
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin') {
-    header("Location: admin_dashboard.php");
-    exit();
+
+// Fetch user_id from user_details
+$sql = "SELECT id FROM user_details WHERE user_email = ?";
+$stmt = $db->prepare($sql);
+$stmt->bind_param("s", $email);
+$stmt->execute();
+$result = $stmt->get_result();
+$user = $result->fetch_assoc();
+
+if (!$user) {
+    die("Error: Employee not found.");
 }
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'employee') {
-    header("Location: employees_dashboard.php");
-    exit();
-}
-require './views/partials/header.php';  
+
+$user_id = $user['id'];
+
+// Fetch assigned projects
+$sql = "SELECT projects.name, projects.description, projects.start_date, projects.end_date, projects.status 
+        FROM projects
+        INNER JOIN employee_projects ON projects.id = employee_projects.project_id
+        WHERE employee_projects.user_id = ?";
+$stmt = $db->prepare($sql);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$result = $stmt->get_result();
+
+// Check if any projects were found
+$projects = [];
+$projects = $result->fetch_all(MYSQLI_ASSOC);
+
+// Close statement
+$stmt->close();
+
+// Now, $projects is an array containing all project data
 ?>
+<?php require './views/partials/header.php'; ?>
+<?php require './views/partials/sidebar.php'; ?>
+<div class="container mt-5">
+    <h2>Your Assigned Projects</h2>
+    <ul class="list-group">
+    <?php foreach ($projects as $project): ?>
+        <li class="list-group-item">
+            <strong><?php echo htmlspecialchars($project['name']); ?></strong><br>
+            <p><?php echo htmlspecialchars($project['description']); ?></p>
+            <p><strong>Start Date:</strong> <?php echo htmlspecialchars($project['start_date']); ?></p>
+            <p><strong>End Date:</strong> <?php echo htmlspecialchars($project['end_date']); ?></p>
+            <p><strong>Status:</strong> <?php echo htmlspecialchars($project['status']); ?></p>
+        </li>
+    <?php endforeach; ?>
+</ul>
+</div>
 
-<?php require  './views/partials/sidebar.php';
-if (!file_exists('./views/partials/header.php')) {
-    die("Error: header.php file not found!");
-}
-if (!file_exists('./views/partials/sidebar.php')) {
-    die("Error: sidebar.php file not found!");
-}
-?>      
-       <!--end::Sidebar--> <!--begin::App Main-->
-        <section class="about-us-section">
-            <div class="container">
-                <div class="row align-items-center">
-                    <div class="col-md-6">
-                        <h2>About Us</h2>
-                        <p>
-                            At <b>YourCompany</b>,Lorem ipsum dolor sit, amet consectetur adipisicing elit. Hic consequatur reiciendis, porro error non nulla blanditiis perferendis architecto adipisci nemo nam labore corrupti eligendi earum a, quisquam voluptatibus quia officia?
-                        </p>
-                        <p>
-                            Lorem ipsum dolor sit amet consectetur adipisicing elit. Incidunt fugit eveniet ea fugiat deleniti soluta, sed ratione iusto quo quod enim repellendus ullam atque est quos tempora consequatur harum ut sit magni. Magnam dolor temporibus error aliquid nihil eveniet officia, eaque fugiat, sunt quidem laudantium excepturi consequuntur doloribus repellat! Praesentium numquam sed, consectetur tempore ratione, quam quisquam a enim aspernatur harum blanditiis, reiciendis commodi maxime cumque vitae doloremque? Voluptatem quos tenetur vitae reprehenderit maiores cupiditate, in similique, praesentium voluptate sint perspiciatis rem expedita iusto non illo magni impedit architecto adipisci aperiam quas. Est amet, praesentium ratione velit reiciendis magnam et.
-                        </p>
-                    </div>
-                    <div class="col-md-6 text-center">
-                        <img src="<?php echo url('/img/photo1.png'); ?>" alt="About Us" class="about-image">
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <footer class="app-footer"> <!--begin::To the end-->
-            <div class="float-end d-none d-sm-inline">Anything you want</div> <!--end::To the end--> <!--begin::Copyright--> <strong>
-                Copyright &copy; 2014-2024&nbsp;
-                <a href="#" class="text-decoration-none">Company name</a>.
-            </strong>
-            All rights reserved.
-            <!--end::Copyright-->
-        </footer> <!--end::Footer-->
-    </div> <!--end::App Wrapper--> <!--begin::Script--> <!--begin::Third Party Plugin(OverlayScrollbars)-->
+<footer class="app-footer">
+    <div class="float-end d-none d-sm-inline">Anything you want</div>
+    <strong>
+        Copyright &copy; 2014-2024&nbsp;
+        <a href="#" class="text-decoration-none">Company name</a>.
+    </strong>
+    All rights reserved.
+</footer> <!--end::Footer--><!--end::App Wrapper--> <!--begin::Script--> <!--begin::Third Party Plugin(OverlayScrollbars)-->
     <script src="https://cdn.jsdelivr.net/npm/overlayscrollbars@2.3.0/browser/overlayscrollbars.browser.es6.min.js" integrity="sha256-H2VM7BKda+v2Z4+DRy69uknwxjyDRhszjXFhsL4gD3w=" crossorigin="anonymous"></script> <!--end::Third Party Plugin(OverlayScrollbars)--><!--begin::Required Plugin(popperjs for Bootstrap 5)-->
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.11.8/dist/umd/popper.min.js" integrity="sha256-whL0tQWoY1Ku1iskqPFvmZ+CHsvmRWx/PIoEvIeWh4I=" crossorigin="anonymous"></script> <!--end::Required Plugin(popperjs for Bootstrap 5)--><!--begin::Required Plugin(Bootstrap 5)-->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.min.js" integrity="sha256-YMa+wAM6QkVyz999odX7lPRxkoYAan8suedu4k2Zur8=" crossorigin="anonymous"></script> <!--end::Required Plugin(Bootstrap 5)--><!--begin::Required Plugin(AdminLTE)-->
-    <script src="./js/adminlte.js"></script> <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
+    <script src="/assets/js/adminlte.js"></script> <!--end::Required Plugin(AdminLTE)--><!--begin::OverlayScrollbars Configure-->
     <script>
         const SELECTOR_SIDEBAR_WRAPPER = ".sidebar-wrapper";
         const Default = {

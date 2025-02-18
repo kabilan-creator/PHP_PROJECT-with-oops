@@ -4,9 +4,9 @@ session_start();
 
 // Check if the user is logged in
 if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === false) {
-    header("Location:" .url('/views/auth/login.php'));
+  header("Location:" . url("/views/auth/login.php"));
 
-    exit();
+  exit();
 }
 ?>
 
@@ -45,7 +45,7 @@ if (isset($_SESSION['is_logged_in']) && $_SESSION['is_logged_in'] === false) {
                 <ul class="navbar-nav ms-auto"> <!--begin::Navbar Search-->
                 
                     <li class="nav-item">
-                    <a href="views/auth/logout.php" class="btn btn-danger nav-link text-white px-3">Logout</a>
+                    <a href='<?php echo url('/views/auth/logout.php') ?>'class="btn btn-danger nav-link text-white px-3">Logout</a>
                     </li> <!--end::Notifications Dropdown Menu--> <!--begin::Fullscreen Toggle-->
                 </ul> <!--end::End Navbar Links-->
             </div> <!--end::Container-->

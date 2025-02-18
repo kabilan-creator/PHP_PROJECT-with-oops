@@ -5,7 +5,7 @@ session_start();
 
 
 if (!isset($_SESSION['is_logged_in']) || $_SESSION['role'] !== 'admin') {
-    header("Location: admin_login.php");
+    header("Location: login.php");
     exit();
 }
  // Handle Create (Add) User/Admin
@@ -142,6 +142,10 @@ if (!file_exists('./views/partials/sidebar.php')) {
         <?php unset($_SESSION['message']); unset($_SESSION['msg_type']); ?>
         <?php endif; ?>
 
+
+        <!-- Add Project Assignment Button -->
+        <a href="AssignProject.php" class="btn btn-primary mb-3">Assign Project</a>
+
         <!-- Add User Form -->
         <form method="POST">
             <h4>Add User</h4>
@@ -157,6 +161,7 @@ if (!file_exists('./views/partials/sidebar.php')) {
             <select name="role" class="form-select mt-2">
                 <option value="admin">Admin</option>
                 <option value="user">User</option>
+                <option value="employee">employee</option>
             </select>
             <button type="submit" name="add_user" class="btn btn-success mt-2">Add</button>
         </form>
@@ -196,6 +201,7 @@ if (!file_exists('./views/partials/sidebar.php')) {
                         <select name="role" class="form-select">
                             <option value="admin" <?php echo ($row['role'] == 'admin') ? 'selected' : ''; ?>>Admin</option>
                             <option value="user" <?php echo ($row['role'] == 'user') ? 'selected' : ''; ?>>User</option>
+                            <option value="employee" <?php echo ($row['role'] == 'employee') ? 'selected' : ''; ?>>employee</option>
                         </select>
                     </td>
                     <td>
